@@ -76,7 +76,8 @@ fun SidebarScreen(
     viewModel: ChatViewModel = hiltViewModel()
 ) {
     val history by viewModel.history.collectAsStateWithLifecycle()
-    val currentUser by viewModel.authManager.session.collectAsStateWithLifecycle()
+    val session by viewModel.authManager.session.collectAsStateWithLifecycle()
+    val currentUser = session?.user
 
     Column(
         modifier = Modifier
@@ -193,13 +194,13 @@ fun SidebarScreen(
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    text = (currentUser.value?.user?.email?.firstOrNull() ?: "A").toString().uppercase(),
+                    text = (currentUser?.email?.firstOrNull() ?: "A").toString().uppercase(),
                     color = Color.Black,
                     fontWeight = FontWeight.Bold
                 )
             }
             Text(
-                text = currentUser.value?.user?.email ?: "Not signed in",
+                text = currentUser?.email ?: "Not signed in",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurface,
                 maxLines = 1,

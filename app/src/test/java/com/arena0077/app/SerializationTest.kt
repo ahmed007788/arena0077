@@ -21,7 +21,7 @@ class SerializationTest {
     }
 
     @Test
-    fun `ArenaUser deserializes from arena.ai response shape`() {
+    fun `ArenaUser deserializes from arena response shape`() {
         val responseJson = """
         {
             "id": "cb3f7163-622e-4f8a-b9c3-84f0d6acc976",

@@ -1,5 +1,6 @@
 package com.arena0077.app.data.models
 
+import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 /**
@@ -13,10 +14,10 @@ import kotlinx.serialization.Serializable
  */
 @Serializable
 enum class Modality(val apiValue: String, val displayName: String) {
-    CHAT("chat", "Chat"),
-    IMAGE("image", "Image"),
-    VIDEO("video", "Video"),
-    WEBDEV("webdev", "Web Dev");
+    @SerialName("chat") CHAT("chat", "Chat"),
+    @SerialName("image") IMAGE("image", "Image"),
+    @SerialName("video") VIDEO("video", "Video"),
+    @SerialName("webdev") WEBDEV("webdev", "Web Dev");
 
     companion object {
         fun fromApi(value: String?): Modality =
@@ -35,10 +36,10 @@ enum class Modality(val apiValue: String, val displayName: String) {
  */
 @Serializable
 enum class BattleMode(val apiValue: String, val displayName: String) {
-    BATTLE("battle", "Battle Mode"),
-    SIDE("side", "Side Mode"),
-    DIRECT("direct", "Direct Chat"),
-    AGENT("agent", "Agent Mode");
+    @SerialName("battle") BATTLE("battle", "Battle Mode"),
+    @SerialName("side") SIDE("side", "Side Mode"),
+    @SerialName("direct") DIRECT("direct", "Direct Chat"),
+    @SerialName("agent") AGENT("agent", "Agent Mode");
 
     companion object {
         fun fromApi(value: String?): BattleMode =

@@ -95,7 +95,10 @@ data class HistoryItem(
     @SerialName("created_at") val createdAt: String,
     @SerialName("updated_at") val updatedAt: String? = null,
     @SerialName("is_archived") val isArchived: Boolean = false
-)
+) {
+    val displayTitle: String
+        get() = title.takeIf { it.isNotBlank() } ?: "New Chat"
+}
 
 /**
  * Unified history response from /api/history/unified.

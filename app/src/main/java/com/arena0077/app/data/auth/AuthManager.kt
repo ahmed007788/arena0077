@@ -63,13 +63,8 @@ class AuthManager @Inject constructor(
     val cookieHeader: String
         get() {
             val s = _session.value ?: return ""
-            // The arena-auth-prod-v1 cookie is split into v1.0 and v1.1 parts
-            // by arena.ai. We mirror the structure for WebView injection.
-            return "arena-auth-prod-v1.0=base64-${java.util.Base64.getEncoder().encodeToString(
-                kotlinx.serialization.json.Json.encodeToString(
-                    kotlinx.serialization.builtins.serializer(),
-                    s
-                ).encodeToByteArray()
-            )}"
+            val json = kotlinx.serialization.json.Json { encodeDefaults = true }
+            val jsonStr = json.encodeToString(com.arena0077.app.data.models.AuthSession.serializer(), s)
+            return "arena-auth-prod-v1.0=base64-${java.util.Base64.getEncoder().encodeToString(jsonStr.encodeToByteArray())}"
         }
 }

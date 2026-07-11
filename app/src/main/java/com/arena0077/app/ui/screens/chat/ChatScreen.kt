@@ -187,6 +187,7 @@ private fun BattleModeBar(
     }
 }
 
+@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
 private fun EmptyChatState(
     modality: Modality,

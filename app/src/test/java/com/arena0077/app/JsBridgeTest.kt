@@ -1,8 +1,16 @@
 package com.arena0077.app.webview
 
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
+import kotlinx.coroutines.test.resetMain
+import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.test.setMain
 import kotlinx.serialization.json.Json
+import org.junit.After
+import org.junit.Before
 import org.junit.Test
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
@@ -11,9 +19,7 @@ import org.junit.Assert.assertTrue
 /**
  * Unit tests for JsBridge event parsing.
  *
- * These tests verify that the JsBridge correctly parses JSON payloads
- * emitted by the WebView's JavaScript and emits the corresponding
- * ChatEvent subtypes.
+ * Uses UnconfinedTestDispatcher so Dispatchers.Main works in unit tests.
  */
 class JsBridgeTest {
 
@@ -23,10 +29,23 @@ class JsBridgeTest {
         explicitNulls = false
     }
 
-    private val bridge = JsBridge(json)
+    private val testDispatcher = UnconfinedTestDispatcher()
+
+    private lateinit var bridge: JsBridge
+
+    @Before
+    fun setUp() {
+        Dispatchers.setMain(testDispatcher)
+        bridge = JsBridge(json)
+    }
+
+    @After
+    fun tearDown() {
+        Dispatchers.resetMain()
+    }
 
     @Test
-    fun `AuthStateChanged parses correctly`() = runBlocking {
+    fun `AuthStateChanged parses correctly`() = runTest {
         val payload = """
             {
                 "isLoggedIn": true,
@@ -44,7 +63,7 @@ class JsBridgeTest {
     }
 
     @Test
-    fun `ConversationCreated parses correctly`() = runBlocking {
+    fun `ConversationCreated parses correctly`() = runTest {
         val payload = """
             {
                 "conversationId": "conv-001",
@@ -64,7 +83,7 @@ class JsBridgeTest {
     }
 
     @Test
-    fun `StreamStarted parses correctly`() = runBlocking {
+    fun `StreamStarted parses correctly`() = runTest {
         val payload = """
             {
                 "conversationId": "conv-001",
@@ -82,7 +101,7 @@ class JsBridgeTest {
     }
 
     @Test
-    fun `StreamChunk parses correctly`() = runBlocking {
+    fun `StreamChunk parses correctly`() = runTest {
         val payload = """
             {
                 "conversationId": "conv-001",
@@ -100,7 +119,7 @@ class JsBridgeTest {
     }
 
     @Test
-    fun `StreamCompleted parses correctly`() = runBlocking {
+    fun `StreamCompleted parses correctly`() = runTest {
         val payload = """
             {
                 "conversationId": "conv-001",
@@ -117,7 +136,7 @@ class JsBridgeTest {
     }
 
     @Test
-    fun `StreamError parses with reCAPTCHA flag`() = runBlocking {
+    fun `StreamError parses with reCAPTCHA flag`() = runTest {
         val payload = """
             {
                 "conversationId": "conv-001",
@@ -135,7 +154,7 @@ class JsBridgeTest {
     }
 
     @Test
-    fun `ImageGenerated parses correctly`() = runBlocking {
+    fun `ImageGenerated parses correctly`() = runTest {
         val payload = """
             {
                 "conversationId": "conv-001",
@@ -152,7 +171,7 @@ class JsBridgeTest {
     }
 
     @Test
-    fun `AgentStep parses correctly`() = runBlocking {
+    fun `AgentStep parses correctly`() = runTest {
         val payload = """
             {
                 "conversationId": "conv-001",
@@ -172,7 +191,7 @@ class JsBridgeTest {
     }
 
     @Test
-    fun `HistoryLoaded parses list of items`() = runBlocking {
+    fun `HistoryLoaded parses list of items`() = runTest {
         val payload = """
             {
                 "items": [
@@ -204,7 +223,7 @@ class JsBridgeTest {
     }
 
     @Test
-    fun `RecaptchaChallenge parses correctly`() = runBlocking {
+    fun `RecaptchaChallenge parses correctly`() = runTest {
         val payload = """
             {
                 "conversationId": "conv-001",

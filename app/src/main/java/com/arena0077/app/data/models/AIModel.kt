@@ -76,8 +76,8 @@ data class LeaderboardResponse(
  */
 @Serializable
 enum class VoteValue(val apiValue: String, val displayName: String) {
-    @SerialName("upvote") MODEL_A_UPVOTE("model_a", "A is better"),
-    @SerialName("downvote") MODEL_B_UPVOTE("model_b", "B is better"),
+    @SerialName("model_a") MODEL_A_UPVOTE("model_a", "A is better"),
+    @SerialName("model_b") MODEL_B_UPVOTE("model_b", "B is better"),
     @SerialName("tie") TIE("tie", "Tie"),
     @SerialName("bothbad") BOTH_BAD("bothbad", "Both are bad");
 
