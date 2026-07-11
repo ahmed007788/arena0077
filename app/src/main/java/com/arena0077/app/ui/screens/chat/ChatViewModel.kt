@@ -8,7 +8,6 @@ import com.arena0077.app.data.models.BattleMode
 import com.arena0077.app.data.models.Conversation
 import com.arena0077.app.data.models.HistoryItem
 import com.arena0077.app.data.models.Message
-import com.arena0077.app.data.models.MessageRole
 import com.arena0077.app.data.models.Modality
 import com.arena0077.app.data.models.QuickAction
 import com.arena0077.app.webview.ChatEvent
@@ -16,25 +15,12 @@ import com.arena0077.app.webview.ChatWebViewEngine
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.util.UUID
 import javax.inject.Inject
 
-/**
- * ChatViewModel - the bridge between the ChatWebViewEngine and Compose UI.
- *
- * Responsibilities:
- *   1. Hold chat UI state (conversation list, current messages, modality, mode).
- *   2. Collect ChatEvent from the WebView engine and update state.
- *   3. Expose commands: sendMessage, stop, vote, openConversation, newChat.
- *   4. Manage loading / error / streaming flags.
- *
- * The ViewModel survives configuration changes and is scoped to the Activity.
- */
 @HiltViewModel
 class ChatViewModel @Inject constructor(
     private val engine: ChatWebViewEngine,
@@ -42,19 +28,8 @@ class ChatViewModel @Inject constructor(
     val authManager: AuthManager
 ) : ViewModel() {
 
-    // ---------------- Public UI state ----------------
-
-    val isLoggedIn: StateFlow<Boolean> = authManager.session
-        .let { session ->
-            MutableStateFlow(session.value?.isValid == true)
-                .apply {
-                    viewModelScope.launch {
-                        session.collect { s ->
-                            value = s?.isValid == true
-                        }
-                    }
-                }
-        }.asStateFlow()
+    private val _isLoggedIn = MutableStateFlow(false)
+    val isLoggedIn: StateFlow<Boolean> = _isLoggedIn.asStateFlow()
 
     private val _history = MutableStateFlow<List<HistoryItem>>(emptyList())
     val history: StateFlow<List<HistoryItem>> = _history.asStateFlow()
@@ -83,12 +58,17 @@ class ChatViewModel @Inject constructor(
     private val _isAuthenticating = MutableStateFlow(false)
     val isAuthenticating: StateFlow<Boolean> = _isAuthenticating.asStateFlow()
 
-    // Streaming message id tracking (for delta updates)
-    private val streamingMessages = mutableMapOf<String, Message>()  // key: modelLabel
+    private val streamingMessages = mutableMapOf<String, Message>()
     private var eventsCollector: Job? = null
 
     init {
         startCollectingEvents()
+        // Observe auth state
+        viewModelScope.launch {
+            authManager.session.collect { s ->
+                _isLoggedIn.value = s?.isValid == true
+            }
+        }
     }
 
     private fun startCollectingEvents() {
@@ -98,20 +78,17 @@ class ChatViewModel @Inject constructor(
         }
     }
 
-    // ---------------- Event handling ----------------
-
     private fun handleEvent(event: ChatEvent) {
         when (event) {
             is ChatEvent.AuthStateChanged -> {
-                // Auth state changed in the WebView
+                _isLoggedIn.value = event.isLoggedIn
             }
 
             is ChatEvent.ConversationCreated -> {
                 _currentConversation.value = Conversation(
                     id = event.conversationId,
                     title = event.title,
-                    modality = event.modality,
-                    mode = event.mode,
+                    mode = event.mode.apiValue,
                     createdAt = System.currentTimeMillis().toString()
                 )
                 _isSending.value = false
@@ -122,17 +99,28 @@ class ChatViewModel @Inject constructor(
                     HistoryItem(
                         id = dto.id,
                         title = dto.title,
-                        modality = com.arena0077.app.data.models.Modality.fromApi(dto.modality),
-                        mode = com.arena0077.app.data.models.BattleMode.fromApi(dto.mode),
+                        modality = dto.modality,
+                        mode = dto.mode,
                         createdAt = dto.createdAt,
                         updatedAt = dto.updatedAt,
-                        isArchived = dto.isArchived
+                        archivedAt = null
                     )
                 }
             }
 
             is ChatEvent.MessagesLoaded -> {
-                _messages.value = event.messages.map { it.toMessage() }
+                _messages.value = event.messages.map { dto ->
+                    Message(
+                        id = dto.id,
+                        role = dto.role,
+                        content = dto.content,
+                        modelId = dto.modelId,
+                        createdAt = dto.createdAt,
+                        participantPosition = dto.modelLabel?.lowercase(),
+                        status = if (dto.isError) "error" else "success",
+                        isError = dto.isError
+                    )
+                }
             }
 
             is ChatEvent.StreamStarted -> {
@@ -140,10 +128,11 @@ class ChatViewModel @Inject constructor(
                 val key = event.messageId
                 val newMsg = Message(
                     id = event.messageId,
-                    role = if (event.modelLabel.equals("A", true) || event.modelLabel.equals("B", true))
-                        MessageRole.MODEL_A else MessageRole.ASSISTANT,
+                    role = "assistant",
                     content = "",
                     createdAt = System.currentTimeMillis().toString(),
+                    participantPosition = event.modelLabel.lowercase(),
+                    status = "streaming",
                     isStreaming = true
                 )
                 streamingMessages[key] = newMsg
@@ -165,9 +154,9 @@ class ChatViewModel @Inject constructor(
                                    else existing?.content ?: ""
                 val finalMsg = (existing ?: Message(
                     id = key,
-                    role = MessageRole.ASSISTANT,
+                    role = "assistant",
                     content = finalContent
-                )).copy(content = finalContent, isStreaming = false)
+                )).copy(content = finalContent, isStreaming = false, status = "success")
                 _messages.value = _messages.value.map { if (it.id == key) finalMsg else it }
                 if (streamingMessages.isEmpty()) _isStreaming.value = false
             }
@@ -184,66 +173,59 @@ class ChatViewModel @Inject constructor(
             }
 
             is ChatEvent.ImageGenerated -> {
-                val key = event.messageId
                 val msg = Message(
-                    id = key,
-                    role = MessageRole.ASSISTANT,
+                    id = event.messageId,
+                    role = "assistant",
                     content = "![Generated Image](${event.imageUrl})",
-                    modelName = event.modelLabel,
-                    createdAt = System.currentTimeMillis().toString()
+                    createdAt = System.currentTimeMillis().toString(),
+                    participantPosition = event.modelLabel.lowercase()
                 )
                 _messages.value = _messages.value + msg
             }
 
             is ChatEvent.VideoGenerated -> {
-                val key = event.messageId
                 val msg = Message(
-                    id = key,
-                    role = MessageRole.ASSISTANT,
+                    id = event.messageId,
+                    role = "assistant",
                     content = "[Video](${event.videoUrl})",
-                    modelName = event.modelLabel,
-                    createdAt = System.currentTimeMillis().toString()
+                    createdAt = System.currentTimeMillis().toString(),
+                    participantPosition = event.modelLabel.lowercase()
                 )
                 _messages.value = _messages.value + msg
             }
 
             is ChatEvent.WebDevPreview -> {
-                val key = event.messageId
                 val msg = Message(
-                    id = key,
-                    role = MessageRole.ASSISTANT,
+                    id = event.messageId,
+                    role = "assistant",
                     content = "Preview: ${event.previewUrl}",
-                    modelName = event.modelLabel,
-                    createdAt = System.currentTimeMillis().toString()
+                    createdAt = System.currentTimeMillis().toString(),
+                    participantPosition = event.modelLabel.lowercase()
                 )
                 _messages.value = _messages.value + msg
             }
 
             is ChatEvent.AgentStep -> {
-                val key = "${event.messageId}-step-${event.stepNumber}"
                 val msg = Message(
-                    id = key,
-                    role = MessageRole.ASSISTANT,
+                    id = "${event.messageId}-step-${event.stepNumber}",
+                    role = "assistant",
                     content = "Step ${event.stepNumber}: ${event.action}" +
                               (event.result?.let { "\n→ $it" } ?: ""),
-                    modelName = "Agent",
-                    createdAt = System.currentTimeMillis().toString()
+                    createdAt = System.currentTimeMillis().toString(),
+                    participantPosition = "agent"
                 )
                 _messages.value = _messages.value + msg
             }
 
-            is ChatEvent.VoteRegistered -> { /* UI updates via state */ }
-            is ChatEvent.ModelsRevealed -> { /* Update messages with model names */ }
+            is ChatEvent.VoteRegistered -> { }
+            is ChatEvent.ModelsRevealed -> { }
             is ChatEvent.RecaptchaChallenge -> {
                 _error.value = "reCAPTCHA challenge required: ${event.reason}"
             }
         }
     }
 
-    // ---------------- Public commands ----------------
-
     fun ensureEngineInitialized() {
-        // Must be called from the main thread (Composable)
         engine.ensureInitialized()
     }
 
@@ -255,16 +237,14 @@ class ChatViewModel @Inject constructor(
         _error.value = null
         _isSending.value = true
 
-        // Add user message to UI immediately
         val userMsg = Message(
             id = UUID.randomUUID().toString(),
-            role = MessageRole.USER,
+            role = "user",
             content = prompt,
             createdAt = System.currentTimeMillis().toString()
         )
         _messages.value = _messages.value + userMsg
 
-        // Send via WebView (handles reCAPTCHA automatically)
         engine.sendMessage(
             prompt = prompt,
             modality = _modality.value,
@@ -295,6 +275,12 @@ class ChatViewModel @Inject constructor(
     fun openConversation(id: String) {
         engine.openConversation(id)
         _messages.value = emptyList()
+        viewModelScope.launch {
+            chatRepo.loadConversation(id).onSuccess { conv ->
+                _currentConversation.value = conv
+                _messages.value = conv.messages
+            }
+        }
     }
 
     fun newChat() {
@@ -306,15 +292,18 @@ class ChatViewModel @Inject constructor(
 
     fun refreshHistory() {
         engine.refreshHistory()
+        viewModelScope.launch {
+            chatRepo.loadHistory().onSuccess { resp ->
+                _history.value = resp.entries
+            }
+        }
     }
 
     fun login(email: String, password: String) {
         _isAuthenticating.value = true
         _error.value = null
         engine.login(email, password)
-        // The AuthStateChanged event will fire when login completes
         viewModelScope.launch {
-            // Wait a bit for login to process
             kotlinx.coroutines.delay(2000)
             _isAuthenticating.value = false
         }
@@ -327,6 +316,7 @@ class ChatViewModel @Inject constructor(
             _currentConversation.value = null
             _messages.value = emptyList()
             _history.value = emptyList()
+            _isLoggedIn.value = false
         }
     }
 
@@ -337,25 +327,5 @@ class ChatViewModel @Inject constructor(
     override fun onCleared() {
         super.onCleared()
         eventsCollector?.cancel()
-        // Don't destroy the engine here - it's a singleton
     }
 }
-
-// Extension to convert MessageDto to Message
-private fun com.arena0077.app.webview.MessageDto.toMessage(): Message = Message(
-    id = id,
-    role = when (role.lowercase()) {
-        "user" -> MessageRole.USER
-        "assistant" -> MessageRole.ASSISTANT
-        "system" -> MessageRole.SYSTEM
-        "model_a" -> MessageRole.MODEL_A
-        "model_b" -> MessageRole.MODEL_B
-        else -> MessageRole.ASSISTANT
-    },
-    content = content,
-    modelId = modelId,
-    modelName = modelName,
-    modelOrganization = modelOrganization,
-    createdAt = createdAt,
-    isError = isError
-)

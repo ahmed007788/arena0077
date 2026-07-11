@@ -6,45 +6,65 @@ import kotlinx.serialization.Serializable
 /**
  * Request to create a new evaluation (start a new chat).
  *
+ * EXACT shape captured from arena.ai production traffic on 2026-07-11.
  * This is the body sent to POST /nextjs-api/stream/create-evaluation.
- * Extracted from the actual JS source code at:
- *   /_next/static/chunks/26145-7f05e3e8cc0adc58.js
  *
- * The actual fetch call in arena.ai's code is:
- *   fetch("/nextjs-api/stream/create-evaluation", {
- *     method: "POST",
- *     body: JSON.stringify({
- *       ...W,  // (the base payload below)
- *       ...(recaptchaV2Token ? {
- *         recaptchaV2Token,
- *         recaptchaV3Token: undefined
- *       } : {})
- *     })
- *   })
- *
- * The `W` payload contains:
- *   - modality: "chat" | "image" | "video" | "webdev"
- *   - mode: "battle" | "side" | "direct" | "agent"
- *   - prompt: string (user message)
- *   - title: string (conversation title)
- *   - modelAId / modelBId: optional (for direct/side mode)
- *   - files: array of attachment references
- *   - webhook: optional webhook configuration
- *   - secrets: optional secrets for A/B
+ * The client generates ALL UUIDs locally before sending - this is critical.
+ * The server uses these IDs to track the conversation and messages.
  */
 @Serializable
 data class CreateEvaluationRequest(
-    val modality: Modality,
-    val mode: BattleMode,
-    val prompt: String,
-    val title: String? = null,
-    @SerialName("modelAId") val modelAId: String? = null,
-    @SerialName("modelBId") val modelBId: String? = null,
-    val files: List<String> = emptyList(),
-    @SerialName("recaptchaV2Token") val recaptchaV2Token: String? = null,
+    val id: String,                              // conversation UUID (client-generated)
+    val mode: String,                            // battle|side|direct|direct-battle|agent
+    @SerialName("userMessageId") val userMessageId: String,
+    @SerialName("modelAMessageId") val modelAMessageId: String,
+    @SerialName("modelBMessageId") val modelBMessageId: String,
+    val userMessage: UserMessagePayload,
+    val modality: String,                        // chat|image|video|webdev
     @SerialName("recaptchaV3Token") val recaptchaV3Token: String? = null,
-    val webhook: WebhookConfig? = null,
-    val secrets: SecretsConfig? = null
+    @SerialName("recaptchaV2Token") val recaptchaV2Token: String? = null
+)
+
+@Serializable
+data class UserMessagePayload(
+    val content: String,
+    @SerialName("experimental_attachments") val experimentalAttachments: List<Attachment> = emptyList(),
+    val metadata: AutoModalityMetadata? = null
+)
+
+@Serializable
+data class AutoModalityMetadata(
+    @SerialName("autoModalityMetadata") val autoModalityMetadata: AutoModalityResult? = null
+)
+
+@Serializable
+data class AutoModalityResult(
+    val modality: String,
+    @SerialName("shouldShowModalitySuggestion") val shouldShowModalitySuggestion: Boolean = false,
+    @SerialName("suggestedModalities") val suggestedModalities: List<String> = emptyList(),
+    val confidence: ModalityConfidence? = null,
+    @SerialName("disabledModalities") val disabledModalities: List<String> = emptyList(),
+    @SerialName("latencyMs") val latencyMs: Long = 0,
+    val thresholds: ModalityThresholds? = null,
+    @SerialName("wasAutoSelected") val wasAutoSelected: Boolean = true,
+    @SerialName("treatmentVariant") val treatmentVariant: String = "treatment-3"
+)
+
+@Serializable
+data class ModalityConfidence(
+    val image: Double = 0.0,
+    val search: Double = 0.0,
+    val text: Double = 1.0,
+    val video: Double = 0.0,
+    val code: Double = 0.0
+)
+
+@Serializable
+data class ModalityThresholds(
+    val IMAGE: Double = 0.8,
+    val VIDEO: Double = 0.95,
+    val SEARCH: Double = 0.8,
+    val CODE: Double = 0.25
 )
 
 /**
@@ -53,23 +73,14 @@ data class CreateEvaluationRequest(
  */
 @Serializable
 data class PostToEvaluationRequest(
-    val prompt: String,
-    val files: List<String> = emptyList(),
-    @SerialName("recaptchaV2Token") val recaptchaV2Token: String? = null,
+    val mode: String,
+    @SerialName("userMessageId") val userMessageId: String,
+    @SerialName("modelAMessageId") val modelAMessageId: String,
+    @SerialName("modelBMessageId") val modelBMessageId: String,
+    val userMessage: UserMessagePayload,
+    val modality: String,
     @SerialName("recaptchaV3Token") val recaptchaV3Token: String? = null,
-    val mode: BattleMode? = null  // omitted for followups (set to undefined)
-)
-
-@Serializable
-data class WebhookConfig(
-    val url: String,
-    val data: String? = null
-)
-
-@Serializable
-data class SecretsConfig(
-    val a: List<String>? = null,
-    val b: List<String>? = null
+    @SerialName("recaptchaV2Token") val recaptchaV2Token: String? = null
 )
 
 /**
@@ -77,7 +88,7 @@ data class SecretsConfig(
  */
 @Serializable
 data class VoteRequest(
-    val value: VoteValue,
+    val value: String,                           // model_a|model_b|tie|bothbad
     @SerialName("messageAId") val messageAId: String,
     @SerialName("messageBId") val messageBId: String,
     @SerialName("evaluationSessionId") val evaluationSessionId: String,
@@ -88,17 +99,17 @@ data class VoteRequest(
 
 /**
  * Login request - POST /nextjs-api/sign-in/email
+ * Captured 2026-07-11: includes shouldLinkHistory flag
  */
 @Serializable
 data class SignInEmailRequest(
     val email: String,
     val password: String,
-    @SerialName("recaptchaToken") val recaptchaToken: String? = null
+    @SerialName("shouldLinkHistory") val shouldLinkHistory: Boolean = true
 )
 
 /**
  * Sign-up request - POST /nextjs-api/sign-up
- * Creates an anonymous user (used before email login).
  */
 @Serializable
 data class SignUpRequest(
@@ -107,24 +118,24 @@ data class SignUpRequest(
 )
 
 /**
- * Stop streaming request - POST /nextjs-api/stream/stop/{id}/messages/{messageId}
- */
-@Serializable
-data class StopStreamingRequest(
-    @SerialName("stoppedAt") val stoppedAt: String? = null
-)
-
-/**
  * Auto-modality detection - POST /nextjs-api/auto-modality
- * arena.ai uses this to auto-detect if a prompt is code, search, image, or text.
+ * Captured 2026-07-11: uses user_prompt (not prompt) and has_image flag
  */
 @Serializable
 data class AutoModalityRequest(
-    val prompt: String
+    @SerialName("user_prompt") val userPrompt: String,
+    @SerialName("has_image") val hasImage: Boolean = false
 )
 
 @Serializable
 data class AutoModalityResponse(
-    val modality: Modality,
-    val confidence: Double? = null
+    val modality: String,
+    @SerialName("shouldShowModalitySuggestion") val shouldShowModalitySuggestion: Boolean = false,
+    @SerialName("suggestedModalities") val suggestedModalities: List<String> = emptyList(),
+    val confidence: ModalityConfidence = ModalityConfidence(),
+    @SerialName("disabledModalities") val disabledModalities: List<String> = emptyList(),
+    @SerialName("latencyMs") val latencyMs: Long = 0,
+    val thresholds: ModalityThresholds = ModalityThresholds(),
+    @SerialName("wasAutoSelected") val wasAutoSelected: Boolean = true,
+    @SerialName("treatmentVariant") val treatmentVariant: String = "treatment-3"
 )

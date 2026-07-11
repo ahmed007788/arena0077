@@ -1,0 +1,519 @@
+{
+  "_meta": {
+    "title": "Arena.ai API Documentation - Captured from Production",
+    "capture_date": "2026-07-11",
+    "capture_method": "HackTools-inspired HTTP repeater via agent-browser",
+    "account_used": "ai9900@bjedu.tech",
+    "supabase_project": "huogzoeqzcrdvkwtvodi.supabase.co",
+    "total_models": 785
+  },
+
+  "authentication": {
+    "provider": "Supabase Auth",
+    "project_url": "https://huogzoeqzcrdvkwtvodi.supabase.co/auth/v1",
+    "jwt_algorithm": "ES256",
+    "jwt_key_id": "09a27963-736f-4c4f-94b2-bfc4b1b61f88",
+    "cookie_name": "arena-auth-prod-v1",
+    "cookie_split": true,
+    "cookie_parts": ["arena-auth-prod-v1.0", "arena-auth-prod-v1.1"],
+    "cookie_format": "base64-<concatenated-parts>",
+    "token_type": "bearer",
+    "expires_in": 3600,
+    "refresh_token_format": "opaque-string",
+    "recaptcha_v3_sitekey": "6LeTGMcsAAAAALuIlkVwIxaAuZA8VledA6d3Nnb0",
+    "recaptcha_v2_sitekey": "6Le3_cYsAAAAAGwWOK2RLDgNI15Bh8C0yLBOL1yL"
+  },
+
+  "cookie_structure": {
+    "description": "The arena-auth-prod-v1 cookie is split into v1.0 and v1.1 because it exceeds the 4KB cookie limit. Concatenate v1.0 + v1.1 to get the full base64 payload.",
+    "decoded_shape": {
+      "access_token": "JWT (ES256 signed)",
+      "token_type": "bearer",
+      "expires_in": 3600,
+      "expires_at": "unix_timestamp",
+      "refresh_token": "opaque",
+      "user": {
+        "id": "UUID (supabase user id)",
+        "aud": "authenticated",
+        "role": "authenticated",
+        "email": "user email",
+        "email_confirmed_at": "ISO timestamp",
+        "phone": "",
+        "confirmed_at": "ISO timestamp",
+        "last_sign_in_at": "ISO timestamp",
+        "app_metadata": {
+          "provider": "email",
+          "providers": ["email"]
+        },
+        "user_metadata": {
+          "domain_url": "https://lmarena.ai",
+          "email": "user email",
+          "email_verified": true,
+          "full_name": "A",
+          "id": "UUID (arena user id)",
+          "last_linked_supabase_user_id": "UUID",
+          "phone_verified": false,
+          "should_link_history": true,
+          "signup_intent_id": "UUID",
+          "sub": "UUID (supabase user id)"
+        },
+        "identities": [
+          {
+            "identity_id": "UUID",
+            "id": "UUID (supabase user id)",
+            "user_id": "UUID (supabase user id)",
+            "identity_data": {...},
+            "provider": "email",
+            "last_sign_in_at": "ISO timestamp",
+            "created_at": "ISO timestamp",
+            "updated_at": "ISO timestamp",
+            "email": "user email"
+          }
+        ],
+        "created_at": "ISO timestamp",
+        "updated_at": "ISO timestamp",
+        "is_anonymous": false
+      },
+      "weak_password": null
+    }
+  },
+
+  "jwt_payload_shape": {
+    "iss": "https://huogzoeqzcrdvkwtvodi.supabase.co/auth/v1",
+    "sub": "supabase-user-uuid",
+    "aud": "authenticated",
+    "exp": "unix_timestamp",
+    "iat": "unix_timestamp",
+    "email": "user email",
+    "phone": "",
+    "app_metadata": {
+      "provider": "email",
+      "providers": ["email"]
+    },
+    "user_metadata": {
+      "domain_url": "https://lmarena.ai",
+      "email": "user email",
+      "email_verified": true,
+      "full_name": "A",
+      "id": "arena-user-uuid",
+      "last_linked_supabase_user_id": "UUID",
+      "phone_verified": false,
+      "should_link_history": true,
+      "signup_intent_id": "UUID",
+      "sub": "supabase-user-uuid"
+    },
+    "role": "authenticated",
+    "aal": "aal1",
+    "amr": [
+      {
+        "method": "password",
+        "timestamp": "unix_timestamp"
+      }
+    ],
+    "session_id": "UUID",
+    "is_anonymous": false
+  },
+
+  "endpoints": {
+
+    "POST /nextjs-api/sign-up": {
+      "description": "Create anonymous user before login",
+      "auth_required": false,
+      "request_body": {
+        "recaptchaToken": "reCAPTCHA V3 token (can be empty in dev)",
+        "provisionalUserId": "UUID (client-generated)"
+      },
+      "response": "ArenaUser object"
+    },
+
+    "POST /nextjs-api/sign-in/email": {
+      "description": "Email + password login",
+      "auth_required": false,
+      "request_body": {
+        "email": "user@example.com",
+        "password": "password",
+        "shouldLinkHistory": true
+      },
+      "response": "ArenaUser object",
+      "sets_cookie": "arena-auth-prod-v1.0 + arena-auth-prod-v1.1"
+    },
+
+    "POST /nextjs-api/sign-out": {
+      "description": "Logout",
+      "auth_required": true,
+      "clears_cookie": "arena-auth-prod-v1"
+    },
+
+    "GET /api/me": {
+      "description": "Current authenticated user (arena.ai user, not supabase)",
+      "auth_required": true,
+      "response_shape": {
+        "user": {
+          "id": "arena-user-uuid",
+          "supabaseUserId": "supabase-user-uuid",
+          "touConsentTimestamp": "2026-01-19 09:25:37.256+00",
+          "avatarUrl": null,
+          "email": "user@example.com",
+          "emailProvider": "email",
+          "username": "A",
+          "marketingSubscribed": false
+        }
+      }
+    },
+
+    "GET /api/history/unified": {
+      "description": "List recent conversations",
+      "auth_required": true,
+      "query_params": {
+        "limit": "int (default 20)",
+        "includeArchived": "boolean (default false)",
+        "cursor": "string (optional, for pagination)"
+      },
+      "response_shape": {
+        "entries": [
+          {
+            "id": "conversation UUID",
+            "title": "string",
+            "modality": "chat|image|video|webdev",
+            "mode": "battle|side|direct-battle|direct|agent",
+            "createdAt": "ISO timestamp",
+            "updatedAt": "ISO timestamp",
+            "archivedAt": null
+          }
+        ],
+        "pagination": {
+          "hasMore": false,
+          "cursor": null,
+          "limit": 20
+        }
+      }
+    },
+
+    "GET /api/evaluation/{conversationId}": {
+      "description": "Get full conversation with all messages",
+      "auth_required": true,
+      "response_shape": {
+        "id": "conversation UUID",
+        "userId": "arena user UUID",
+        "title": "string",
+        "mode": "direct-battle|battle|side|direct|agent",
+        "visibility": "public|private",
+        "lastMessageIds": ["UUID"],
+        "archivedAt": null,
+        "deletedAt": null,
+        "deletionPendingProcessing": false,
+        "createdAt": "2026-07-10 20:09:10.432+00",
+        "updatedAt": "2026-07-10 20:10:13.594078+00",
+        "messages": [
+          {
+            "id": "message UUID",
+            "evaluationSessionId": "conversation UUID",
+            "evaluationId": "UUID (different from session)",
+            "role": "user|assistant",
+            "parentMessageIds": [],
+            "content": "message text",
+            "experimental_attachments": [],
+            "modelId": "UUID or null for user messages",
+            "createdAt": "ISO timestamp",
+            "updatedAt": "ISO timestamp",
+            "participantPosition": "a|b",
+            "status": "success|error|streaming",
+            "failureReason": null,
+            "metadata": {
+              "botScore": 0.4,
+              "userAgent": "string",
+              "contentType": "application/json",
+              "botScoreType": "recaptcha_v3",
+              "secFetchMode": "cors",
+              "wouldEscalate": false,
+              "acceptLanguage": "*",
+              "recaptchaReason": "lion_above_threshold",
+              "arenaLionV1Score": 0.428,
+              "recaptchaDidFail": false,
+              "recaptchaOutcome": "accept",
+              "recaptchaV3Score": 0.4,
+              "cloudflareMetadata": {
+                "ja4": "string",
+                "botScore": "99",
+                "clientAsn": "8452",
+                "clientCity": "Kafr ash Shaykh",
+                "clientRegion": "Kafr el-Sheikh",
+                "clientCountry": "EG",
+                "hashedClientIp": "hash"
+              }
+            }
+          }
+        ]
+      }
+    },
+
+    "POST /nextjs-api/auto-modality": {
+      "description": "Auto-detect prompt modality",
+      "auth_required": true,
+      "request_body": {
+        "user_prompt": "string",
+        "has_image": false
+      },
+      "response_shape": {
+        "modality": "chat|image|video|webdev|search|code",
+        "shouldShowModalitySuggestion": false,
+        "suggestedModalities": [],
+        "confidence": {
+          "image": 0.0001,
+          "search": 0.0002,
+          "text": 0.9995,
+          "video": 0.00003,
+          "code": 0.0001
+        },
+        "disabledModalities": [],
+        "latencyMs": 314,
+        "thresholds": {
+          "IMAGE": 0.8,
+          "VIDEO": 0.95,
+          "SEARCH": 0.8,
+          "CODE": 0.25
+        },
+        "wasAutoSelected": true,
+        "treatmentVariant": "treatment-3"
+      }
+    },
+
+    "POST /nextjs-api/stream/create-evaluation": {
+      "description": "Start a new chat (streaming response via SSE)",
+      "auth_required": true,
+      "recaptcha_required": "V3 or V2",
+      "request_body": {
+        "id": "UUID (client-generated conversation id)",
+        "mode": "battle|side|direct|direct-battle|agent",
+        "userMessageId": "UUID (client-generated)",
+        "modelAMessageId": "UUID (client-generated)",
+        "modelBMessageId": "UUID (client-generated)",
+        "userMessage": {
+          "content": "user prompt text",
+          "experimental_attachments": [],
+          "metadata": {
+            "autoModalityMetadata": {
+              "modality": "chat",
+              "shouldShowModalitySuggestion": false,
+              "suggestedModalities": [],
+              "confidence": {
+                "image": 0.0001,
+                "search": 0.0002,
+                "text": 0.9995,
+                "video": 0.00003,
+                "code": 0.0001
+              },
+              "disabledModalities": [],
+              "latencyMs": 314,
+              "thresholds": {
+                "IMAGE": 0.8,
+                "VIDEO": 0.95,
+                "SEARCH": 0.8,
+                "CODE": 0.25
+              },
+              "wasAutoSelected": true,
+              "treatmentVariant": "treatment-3"
+            }
+          }
+        },
+        "modality": "chat|image|video|webdev",
+        "recaptchaV3Token": "reCAPTCHA V3 token",
+        "recaptchaV2Token": "null (only used when V3 fails)"
+      },
+      "response": "Server-Sent Events stream",
+      "status_403": "Returned when reCAPTCHA validation fails - client must retry with V2 token"
+    },
+
+    "POST /nextjs-api/stream/post-to-evaluation/{conversationId}": {
+      "description": "Send followup message to existing conversation",
+      "auth_required": true,
+      "recaptcha_required": "V3 or V2",
+      "request_body": "Same as create-evaluation but without id field"
+    },
+
+    "POST /nextjs-api/stream/stop/{conversationId}/messages/{messageId}": {
+      "description": "Stop streaming",
+      "auth_required": true
+    },
+
+    "POST /nextjs-api/stream/rerun/{messageId}": {
+      "description": "Rerun a message",
+      "auth_required": true
+    },
+
+    "POST /nextjs-api/stream/resample/{conversationId}": {
+      "description": "Resample a response",
+      "auth_required": true
+    },
+
+    "POST /nextjs-api/stream/skip-direct-battle/{conversationId}": {
+      "description": "Skip direct battle",
+      "auth_required": true
+    },
+
+    "POST /nextjs-api/stream/retry-evaluation-session-message/{conversationId}/messages/{messageId}": {
+      "description": "Retry a message",
+      "auth_required": true
+    },
+
+    "POST /nextjs-api/stream/resume-webdev/{conversationId}": {
+      "description": "Resume web dev session",
+      "auth_required": true
+    },
+
+    "POST /nextjs-api/stream/resume-video-workflow/{conversationId}": {
+      "description": "Resume video workflow",
+      "auth_required": true
+    },
+
+    "GET /api/evaluation/webdev/{id}/stream-credentials": {
+      "description": "Get web dev streaming credentials",
+      "auth_required": true
+    },
+
+    "POST /api/vote": {
+      "description": "Vote for better model in battle mode",
+      "auth_required": true,
+      "recaptcha_required": "V3",
+      "request_body": {
+        "value": "model_a|model_b|tie|bothbad",
+        "messageAId": "UUID",
+        "messageBId": "UUID",
+        "evaluationSessionId": "UUID",
+        "recaptchaV3Token": "token",
+        "modelsRevealed": false,
+        "didInspectBothMobileHorizontalResponses": false
+      }
+    },
+
+    "GET /nextjs-api/proxy/media?url={url}": {
+      "description": "Proxy external media through arena.ai",
+      "auth_required": false
+    },
+
+    "POST /nextjs-api/factuality/verify": {
+      "description": "Factuality verification",
+      "auth_required": true
+    },
+
+    "POST /nextjs-api/reset-password/request": {
+      "description": "Request password reset"
+    },
+
+    "POST /nextjs-api/reset-password/confirm": {
+      "description": "Confirm password reset"
+    },
+
+    "POST /nextjs-api/reset-password/change": {
+      "description": "Change password"
+    },
+
+    "POST /nextjs-api/resend-verification": {
+      "description": "Resend email verification"
+    },
+
+    "POST /nextjs-api/sign-up/magic-link": {
+      "description": "Magic link sign-up"
+    },
+
+    "POST /nextjs-api/sign-in/google": {
+      "description": "Google OAuth sign-in"
+    }
+  },
+
+  "leaderboard": {
+    "url": "https://arena.ai/leaderboard",
+    "data_source": "Next.js RSC payload (embedded in page HTML)",
+    "categories": ["overall", "text", "vision", "coding", "hard", "agent"],
+    "models_count": 785,
+    "organizations_count": 50,
+    "top_organizations": {
+      "openai": 67,
+      "google": 55,
+      "alibaba": 49,
+      "anthropic": 30
+    },
+    "model_shape": {
+      "id": "UUID",
+      "organization": "string (e.g., openai, anthropic, google)",
+      "provider": "string (e.g., openaiResponses, googleVertexAnthropic)",
+      "publicName": "string (e.g., gpt-5.6-sol-xhigh)",
+      "name": "string (internal name)",
+      "displayName": "string (user-facing name)",
+      "capabilities": {
+        "inputCapabilities": {
+          "text": true,
+          "image": "boolean or {multipleImages: true}",
+          "file": true
+        },
+        "outputCapabilities": {
+          "text": true,
+          "web": true,
+          "image": {"aspectRatios": ["1:1"]},
+          "search": true
+        }
+      },
+      "userSelectable": true,
+      "rank": 1,
+      "rankByModality": {
+        "chat": 1,
+        "webdev": 12,
+        "image": 9007199254740991,
+        "search": 9007199254740991
+      }
+    }
+  },
+
+  "quick_actions": [
+    {
+      "title": "Create a landing page",
+      "description": "Create a sleek, modern landing page",
+      "modality": "webdev"
+    },
+    {
+      "title": "Build a dashboard",
+      "description": "Turn data into interactive charts",
+      "modality": "webdev"
+    },
+    {
+      "title": "Make a game",
+      "description": "Build a playable browser game",
+      "modality": "webdev"
+    },
+    {
+      "title": "Design to Code",
+      "description": "Upload an image and have AI build it",
+      "modality": "webdev"
+    },
+    {
+      "title": "Build a fullstack app",
+      "description": "Create a templated full-stack app",
+      "modality": "webdev"
+    },
+    {
+      "title": "Launch a storefront",
+      "description": "Create a beautiful online shop",
+      "modality": "webdev"
+    }
+  ],
+
+  "modalities": ["chat", "image", "video", "webdev", "search", "code"],
+
+  "battle_modes": ["battle", "side", "direct", "direct-battle", "agent"],
+
+  "rate_limits": {
+    "api_me": "9000 requests per 300 seconds (ratelimit header observed)",
+    "create_evaluation": "Subject to reCAPTCHA + arenaLion bot scoring"
+  },
+
+  "bot_detection": {
+    "primary": "reCAPTCHA Enterprise V3 (invisible, score-based)",
+    "fallback": "reCAPTCHA Enterprise V2 (challenge widget)",
+    "secondary": "ArenaLion V1 (proprietary bot scoring model)",
+    "cloudflare": "JA4 fingerprinting, bot score, ASN, geolocation",
+    "thresholds": {
+      "recaptcha_v3_accept": "score >= 0.4 (observed)",
+      "lion_above_threshold": "accept if recaptcha score >= 0.4"
+    }
+  }
+}

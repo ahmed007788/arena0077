@@ -4,41 +4,53 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 /**
- * Modalities supported by arena.ai - extracted from the actual JS bundles.
+ * Modalities supported by arena.ai - extracted from production traffic.
  *
- * The enum EEvaluationModality appears in arena.ai's source code:
- *   - CHAT:   Standard text chat (Battle Mode default)
- *   - IMAGE:  Image generation (DALL-E, Midjourney, Stable Diffusion, etc.)
- *   - VIDEO:  Video generation
- *   - WEBDEV: Web development mode (Design to Code, Build dashboard, Build game, etc.)
+ * The auto-modality endpoint returns confidence scores for all 5 modalities:
+ *   text, image, video, search, code
+ *
+ * The create-evaluation endpoint accepts: chat, image, video, webdev
+ * (note: "chat" not "text" for the chat modality)
  */
 @Serializable
 enum class Modality(val apiValue: String, val displayName: String) {
     @SerialName("chat") CHAT("chat", "Chat"),
     @SerialName("image") IMAGE("image", "Image"),
     @SerialName("video") VIDEO("video", "Video"),
-    @SerialName("webdev") WEBDEV("webdev", "Web Dev");
+    @SerialName("webdev") WEBDEV("webdev", "Web Dev"),
+    @SerialName("search") SEARCH("search", "Search"),
+    @SerialName("code") CODE("code", "Code");
 
     companion object {
         fun fromApi(value: String?): Modality =
             values().firstOrNull { it.apiValue.equals(value, ignoreCase = true) } ?: CHAT
+
+        fun fromConfidence(confidence: ModalityConfidence): Modality {
+            val map = mapOf(
+                IMAGE to confidence.image,
+                SEARCH to confidence.search,
+                CHAT to confidence.text,
+                VIDEO to confidence.video,
+                CODE to confidence.code
+            )
+            return map.maxByOrNull { it.value }?.key ?: CHAT
+        }
     }
 }
 
 /**
  * Battle modes - how two models are compared.
- * Extracted from the actual arena.ai source.
+ * Captured from arena.ai: battle, side, direct, direct-battle, agent
  *
- *   - BATTLE:      Two anonymous models compete side-by-side
- *   - SIDE:        Side-by-side comparison with model names visible
- *   - DIRECT:      Chat with a single specific model
- *   - AGENT:       Agent mode - autonomous multi-step task execution
+ * Note: "direct-battle" is a variant of direct that still pits 2 models
+ * but with user-selected models.
  */
 @Serializable
 enum class BattleMode(val apiValue: String, val displayName: String) {
     @SerialName("battle") BATTLE("battle", "Battle Mode"),
     @SerialName("side") SIDE("side", "Side Mode"),
     @SerialName("direct") DIRECT("direct", "Direct Chat"),
+    @SerialName("direct-battle") DIRECT_BATTLE("direct-battle", "Direct Battle"),
     @SerialName("agent") AGENT("agent", "Agent Mode");
 
     companion object {
@@ -48,23 +60,8 @@ enum class BattleMode(val apiValue: String, val displayName: String) {
 }
 
 /**
- * Chat modality toolbar options - the small buttons above the input box.
- *   - CODE:   Code generation modality
- *   - SEARCH: Web search modality
- *   - IMAGE:  Image generation
- *   - VIDEO:  Video generation
- */
-@Serializable
-enum class ChatToolbar(val apiValue: String, val displayName: String) {
-    CODE("code", "Code"),
-    SEARCH("search", "Search"),
-    IMAGE("image", "Image"),
-    VIDEO("video", "Video")
-}
-
-/**
  * Quick action templates shown on the empty chat state.
- * Extracted verbatim from arena.ai's homepage.
+ * Extracted verbatim from arena.ai's homepage on 2026-07-11.
  */
 @Serializable
 enum class QuickAction(val title: String, val description: String, val prompt: String, val modality: Modality) {

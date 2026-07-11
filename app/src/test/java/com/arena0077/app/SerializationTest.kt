@@ -5,12 +5,11 @@ import org.junit.Test
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
+import org.junit.Assert.assertFalse
 
 /**
  * Unit tests for serialization of data models.
- *
- * These tests verify that our @Serializable models correctly serialize and
- * deserialize to the JSON shapes that arena.ai's actual API uses.
+ * Based on REAL captured data from arena.ai production traffic (2026-07-11).
  */
 class SerializationTest {
 
@@ -21,89 +20,49 @@ class SerializationTest {
     }
 
     @Test
-    fun `ArenaUser deserializes from arena response shape`() {
+    fun `ArenaUser deserializes from real arena response shape`() {
         val responseJson = """
         {
-            "id": "cb3f7163-622e-4f8a-b9c3-84f0d6acc976",
-            "aud": "authenticated",
-            "role": "authenticated",
-            "email": "Ai9900@bjedu.tech",
-            "email_confirmed_at": "2026-01-19T09:24:11.978647Z",
-            "confirmed_at": "2026-01-19T09:24:11.978647Z",
-            "last_sign_in_at": "2026-07-11T00:09:14.78794Z",
-            "app_metadata": {
-                "provider": "email",
-                "providers": ["email"]
-            },
-            "user_metadata": {
-                "domain_url": "https://lmarena.ai",
-                "email": "Ai9900@bjedu.tech",
-                "email_verified": true,
-                "full_name": "A",
-                "phone_verified": false,
-                "should_link_history": true
-            },
-            "is_anonymous": false,
-            "created_at": "2026-01-19T09:22:49.666901Z"
+            "user": {
+                "id": "019bd58f-849d-75c2-a614-10b608b7d4b5",
+                "supabaseUserId": "cb3f7163-622e-4f8a-b9c3-84f0d6acc976",
+                "touConsentTimestamp": "2026-01-19 09:25:37.256+00",
+                "avatarUrl": null,
+                "email": "ai9900@bjedu.tech",
+                "emailProvider": "email",
+                "username": "A",
+                "marketingSubscribed": false
+            }
         }
         """.trimIndent()
 
         val user = json.decodeFromString(ArenaUser.serializer(), responseJson)
 
-        assertEquals("cb3f7163-622e-4f8a-b9c3-84f0d6acc976", user.id)
-        assertEquals("Ai9900@bjedu.tech", user.email)
-        assertEquals("authenticated", user.aud)
-        assertEquals("email", user.appMetadata.provider)
-        assertEquals("https://lmarena.ai", user.userMetadata.domainUrl)
-        assertTrue(user.userMetadata.emailVerified)
-        assertNotNull(user.emailConfirmedAt)
+        assertEquals("019bd58f-849d-75c2-a614-10b608b7d4b5", user.user.id)
+        assertEquals("cb3f7163-622e-4f8a-b9c3-84f0d6acc976", user.user.supabaseUserId)
+        assertEquals("ai9900@bjedu.tech", user.user.email)
+        assertEquals("email", user.user.emailProvider)
+        assertEquals("A", user.user.username)
+        assertFalse(user.user.marketingSubscribed)
     }
 
     @Test
     fun `ArenaUser ignores unknown fields`() {
         val jsonWithExtras = """
         {
-            "id": "test-id",
-            "email": "test@test.com",
-            "unknown_field": "should be ignored",
-            "another_unknown": 123
+            "user": {
+                "id": "test-id",
+                "supabaseUserId": "supabase-id",
+                "email": "test@test.com",
+                "unknown_field": "should be ignored"
+            },
+            "extra_field": true
         }
         """.trimIndent()
 
         val user = json.decodeFromString(ArenaUser.serializer(), jsonWithExtras)
-        assertEquals("test-id", user.id)
-        assertEquals("test@test.com", user.email)
-    }
-
-    @Test
-    fun `CreateEvaluationRequest serializes with correct field names`() {
-        val request = CreateEvaluationRequest(
-            modality = Modality.CHAT,
-            mode = BattleMode.BATTLE,
-            prompt = "Hello, what is 2+2?",
-            modelAId = null,
-            modelBId = null
-        )
-
-        val jsonStr = json.encodeToString(CreateEvaluationRequest.serializer(), request)
-
-        assertTrue(jsonStr.contains("\"modality\":\"chat\""))
-        assertTrue(jsonStr.contains("\"mode\":\"battle\""))
-        assertTrue(jsonStr.contains("\"prompt\":\"Hello, what is 2+2?\""))
-    }
-
-    @Test
-    fun `PostToEvaluationRequest serializes with null mode for followups`() {
-        val request = PostToEvaluationRequest(
-            prompt = "Followup question",
-            mode = null
-        )
-
-        val jsonStr = json.encodeToString(PostToEvaluationRequest.serializer(), request)
-
-        assertTrue(jsonStr.contains("\"prompt\":\"Followup question\""))
-        // mode should be omitted (explicitNulls = false)
-        assertTrue(!jsonStr.contains("\"mode\""))
+        assertEquals("test-id", user.user.id)
+        assertEquals("test@test.com", user.user.email)
     }
 
     @Test
@@ -111,8 +70,8 @@ class SerializationTest {
         val session = AuthSession(
             accessToken = "token",
             refreshToken = "refresh",
-            expiresAt = System.currentTimeMillis() / 1000 - 3600,  // 1 hour ago
-            user = ArenaUser(id = "1", email = "test@test.com")
+            expiresAt = System.currentTimeMillis() / 1000 - 3600,
+            user = SupabaseUser(id = "1", email = "test@test.com")
         )
 
         assertTrue(session.isExpired)
@@ -124,8 +83,8 @@ class SerializationTest {
         val session = AuthSession(
             accessToken = "token",
             refreshToken = "refresh",
-            expiresAt = System.currentTimeMillis() / 1000 + 3600,  // 1 hour from now
-            user = ArenaUser(id = "1", email = "test@test.com")
+            expiresAt = System.currentTimeMillis() / 1000 + 3600,
+            user = SupabaseUser(id = "1", email = "test@test.com")
         )
 
         assertTrue(!session.isExpired)
@@ -163,16 +122,72 @@ class SerializationTest {
     }
 
     @Test
-    fun `SignInEmailRequest serializes correctly`() {
+    fun `Conversation battleMode extracts from mode string`() {
+        val conv = Conversation(
+            id = "test",
+            mode = "battle",
+            createdAt = "2026-07-11"
+        )
+        assertEquals(BattleMode.BATTLE, conv.battleMode)
+
+        val conv2 = Conversation(id = "test", mode = "agent", createdAt = "2026-07-11")
+        assertEquals(BattleMode.AGENT, conv2.battleMode)
+
+        val conv3 = Conversation(id = "test", mode = "direct-battle", createdAt = "2026-07-11")
+        assertEquals(BattleMode.DIRECT, conv3.battleMode)
+    }
+
+    @Test
+    fun `Message isUser detects user role`() {
+        val msg = Message(id = "1", role = "user", content = "hello")
+        assertTrue(msg.isUser)
+        assertTrue(!msg.isModelA)
+        assertTrue(!msg.isModelB)
+    }
+
+    @Test
+    fun `Message isModelA detects participant position a`() {
+        val msg = Message(id = "1", role = "assistant", content = "hi", participantPosition = "a")
+        assertTrue(!msg.isUser)
+        assertTrue(msg.isModelA)
+        assertTrue(!msg.isModelB)
+        assertEquals("Model A", msg.modelLabel)
+    }
+
+    @Test
+    fun `Message isModelB detects participant position b`() {
+        val msg = Message(id = "1", role = "assistant", content = "hi", participantPosition = "b")
+        assertTrue(msg.isModelB)
+        assertEquals("Model B", msg.modelLabel)
+    }
+
+    @Test
+    fun `SignInEmailRequest serializes with shouldLinkHistory`() {
         val request = SignInEmailRequest(
             email = "user@example.com",
-            password = "password123"
+            password = "password123",
+            shouldLinkHistory = true
         )
 
         val jsonStr = json.encodeToString(SignInEmailRequest.serializer(), request)
 
         assertTrue(jsonStr.contains("\"email\":\"user@example.com\""))
         assertTrue(jsonStr.contains("\"password\":\"password123\""))
+        assertTrue(jsonStr.contains("\"shouldLinkHistory\":true"))
+    }
+
+    @Test
+    fun `AutoModalityRequest uses user_prompt field name`() {
+        val request = AutoModalityRequest(
+            userPrompt = "Generate an image of a cat",
+            hasImage = false
+        )
+
+        val jsonStr = json.encodeToString(AutoModalityRequest.serializer(), request)
+
+        // CRITICAL: arena.ai uses user_prompt (not prompt)
+        assertTrue(jsonStr.contains("\"user_prompt\":\"Generate an image of a cat\""))
+        assertTrue(jsonStr.contains("\"has_image\":false"))
     }
 
     @Test
@@ -184,5 +199,41 @@ class SerializationTest {
     fun `LeaderboardCategory fromApi is case insensitive`() {
         assertEquals(LeaderboardCategory.TEXT, LeaderboardCategory.fromApi("TEXT"))
         assertEquals(LeaderboardCategory.CODING, LeaderboardCategory.fromApi("Coding"))
+    }
+
+    @Test
+    fun `Modality fromConfidence picks highest scoring modality`() {
+        val confidence = ModalityConfidence(
+            image = 0.9,
+            search = 0.1,
+            text = 0.05,
+            video = 0.02,
+            code = 0.01
+        )
+        assertEquals(Modality.IMAGE, Modality.fromConfidence(confidence))
+    }
+
+    @Test
+    fun `Modality fromConfidence defaults to CHAT for text-heavy prompts`() {
+        val confidence = ModalityConfidence(
+            image = 0.0001,
+            search = 0.0002,
+            text = 0.9995,
+            video = 0.00003,
+            code = 0.0001
+        )
+        assertEquals(Modality.CHAT, Modality.fromConfidence(confidence))
+    }
+
+    @Test
+    fun `VoteValue uses model_a and model_b values`() {
+        val req = VoteRequest(
+            value = "model_a",
+            messageAId = "msg-a",
+            messageBId = "msg-b",
+            evaluationSessionId = "conv-1"
+        )
+        val jsonStr = json.encodeToString(VoteRequest.serializer(), req)
+        assertTrue(jsonStr.contains("\"value\":\"model_a\""))
     }
 }

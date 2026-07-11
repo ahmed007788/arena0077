@@ -1,11 +1,12 @@
 package com.arena0077.app.data.api
 
+import com.arena0077.app.data.models.ArenaUser
 import com.arena0077.app.data.models.AutoModalityRequest
 import com.arena0077.app.data.models.AutoModalityResponse
 import com.arena0077.app.data.models.HistoryResponse
+import com.arena0077.app.data.models.Conversation
 import com.arena0077.app.data.models.SignInEmailRequest
 import com.arena0077.app.data.models.SignUpRequest
-import com.arena0077.app.data.models.ArenaUser
 import com.arena0077.app.data.models.VoteRequest
 import okhttp3.MultipartBody
 import okhttp3.RequestBody
@@ -21,15 +22,15 @@ import retrofit2.http.Query
 /**
  * Arena.ai REST API surface.
  *
- * Every endpoint here was extracted from arena.ai's production JS bundles:
- *   /_next/static/chunks/26145-7f05e3e8cc0adc58.js  (chat streaming logic)
- *   /_next/static/chunks/1352-a493db734fba80d6.js    (Zod schemas / request shapes)
- *   /_next/static/chunks/1780-37d607c4c0817365.js    (sign-up / recaptcha)
+ * Every endpoint here was captured from arena.ai's production traffic on 2026-07-11
+ * using HackTools-inspired HTTP repeater via agent-browser.
  *
  * IMPORTANT: Endpoints that require reCAPTCHA Enterprise tokens
  * (create-evaluation, post-to-evaluation, vote) are NOT safe to call
  * directly from native code. They must be called through the WebView
  * so reCAPTCHA V2/V3 tokens can be obtained. See ArenaWebViewClient.
+ *
+ * The Supabase project is huogzoeqzcrdvkwtvodi.supabase.co (ES256 JWT).
  */
 interface ArenaApi {
 
@@ -51,7 +52,13 @@ interface ArenaApi {
     @POST("nextjs-api/reset-password/request")
     suspend fun requestPasswordReset(@Body body: Map<String, String>)
 
-    /** GET /api/me - current authenticated user. */
+    /** POST /nextjs-api/sign-up/magic-link - magic link sign-up. */
+    @POST("nextjs-api/sign-up/magic-link")
+    suspend fun signUpMagicLink(@Body body: Map<String, String>)
+
+    // ===================== User =====================
+
+    /** GET /api/me - current authenticated arena.ai user. */
     @GET("api/me")
     suspend fun getMe(): ArenaUser
 
@@ -65,6 +72,12 @@ interface ArenaApi {
         @Query("cursor") cursor: String? = null
     ): HistoryResponse
 
+    // ===================== Conversation =====================
+
+    /** GET /api/evaluation/{id} - full conversation with all messages. */
+    @GET("api/evaluation/{id}")
+    suspend fun getEvaluation(@Path("id") conversationId: String): Conversation
+
     // ===================== Modality routing =====================
 
     /** POST /nextjs-api/auto-modality - auto-detect prompt modality. */
@@ -75,7 +88,7 @@ interface ArenaApi {
     // These endpoints are NOT called directly. The WebView handles them.
     // The signatures are kept here for documentation and future use.
 
-    /** POST /nextjs-api/stream/create-evaluation - start a new chat (battle/side/direct). */
+    /** POST /nextjs-api/stream/create-evaluation - start a new chat (battle/side/direct/agent). */
     @POST("nextjs-api/stream/create-evaluation")
     suspend fun createEvaluation(@Body body: RequestBody): ResponseBody
 
@@ -106,6 +119,22 @@ interface ArenaApi {
     @POST("nextjs-api/stream/skip-direct-battle/{id}")
     suspend fun skipDirectBattle(@Path("id") evaluationSessionId: String): ResponseBody
 
+    /** POST /nextjs-api/stream/retry-evaluation-session-message/{id}/messages/{msgId} - retry. */
+    @POST("nextjs-api/stream/retry-evaluation-session-message/{id}/messages/{msgId}")
+    suspend fun retryMessage(
+        @Path("id") evaluationSessionId: String,
+        @Path("msgId") messageId: String,
+        @Body body: RequestBody
+    ): ResponseBody
+
+    /** POST /nextjs-api/stream/resume-webdev/{id} - resume web dev session. */
+    @POST("nextjs-api/stream/resume-webdev/{id}")
+    suspend fun resumeWebdev(@Path("id") id: String, @Body body: RequestBody): ResponseBody
+
+    /** POST /nextjs-api/stream/resume-video-workflow/{id} - resume video workflow. */
+    @POST("nextjs-api/stream/resume-video-workflow/{id}")
+    suspend fun resumeVideoWorkflow(@Path("id") id: String, @Body body: RequestBody): ResponseBody
+
     // ===================== Voting =====================
 
     /** POST /api/vote - vote for the better model in battle mode. */
@@ -125,25 +154,15 @@ interface ArenaApi {
     @POST("api/files")
     suspend fun uploadFile(@Part part: MultipartBody.Part): ResponseBody
 
-    // ===================== Web dev (Design to Code, etc.) =====================
+    // ===================== Web dev =====================
 
     /** GET /api/evaluation/webdev/{id}/stream-credentials - web dev streaming credentials. */
     @GET("api/evaluation/webdev/{id}/stream-credentials")
     suspend fun getWebdevStreamCredentials(@Path("id") id: String): ResponseBody
 
-    /** POST /nextjs-api/stream/resume-webdev/{id} - resume web dev session. */
-    @POST("nextjs-api/stream/resume-webdev/{id}")
-    suspend fun resumeWebdev(@Path("id") id: String, @Body body: RequestBody): ResponseBody
+    // ===================== Factuality =====================
 
-    /** POST /nextjs-api/stream/resume-video-workflow/{id} - resume video workflow. */
-    @POST("nextjs-api/stream/resume-video-workflow/{id}")
-    suspend fun resumeVideoWorkflow(@Path("id") id: String, @Body body: RequestBody): ResponseBody
-
-    /** POST /nextjs-api/stream/retry-evaluation-session-message/{id}/messages/{msgId} - retry. */
-    @POST("nextjs-api/stream/retry-evaluation-session-message/{id}/messages/{msgId}")
-    suspend fun retryMessage(
-        @Path("id") evaluationSessionId: String,
-        @Path("msgId") messageId: String,
-        @Body body: RequestBody
-    ): ResponseBody
+    /** POST /nextjs-api/factuality/verify - factuality verification. */
+    @POST("nextjs-api/factuality/verify")
+    suspend fun verifyFactuality(@Body body: RequestBody): ResponseBody
 }

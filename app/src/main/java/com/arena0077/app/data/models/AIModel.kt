@@ -4,27 +4,54 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 /**
- * AI Model - extracted from arena.ai's leaderboard data.
+ * AI Model - EXACT shape from arena.ai leaderboard RSC payload.
+ * Captured 2026-07-11 from https://arena.ai/leaderboard
  *
- * arena.ai ranks hundreds of models. Each has an id, name, organization,
- * and arena score. Users can pick specific models in Direct Chat mode.
+ * 785 models across 50 organizations.
  */
 @Serializable
 data class AIModel(
     val id: String,
-    val name: String,
     val organization: String? = null,
-    @SerialName("arena_score") val arenaScore: Double? = null,
-    @SerialName("confidence_interval") val confidenceInterval: Double? = null,
-    @SerialName("votes") val votes: Long? = null,
+    val provider: String? = null,
+    val publicName: String,
+    val name: String,
+    val displayName: String,
+    val capabilities: ModelCapabilities? = null,
+    @SerialName("userSelectable") val userSelectable: Boolean = true,
     val rank: Int? = null,
-    @SerialName("license") val license: String? = null,
-    @SerialName("knowledge_cutoff") val knowledgeCutoff: String? = null,
-    val modalities: List<String> = emptyList(),
-    @SerialName("is_open_source") val isOpenSource: Boolean? = null,
-    val description: String? = null,
-    @SerialName("logo_url") val logoUrl: String? = null,
-    @SerialName("is_active") val isActive: Boolean = true
+    @SerialName("rankByModality") val rankByModality: Map<String, Long> = emptyMap()
+)
+
+@Serializable
+data class ModelCapabilities(
+    @SerialName("inputCapabilities") val inputCapabilities: InputCapabilities? = null,
+    @SerialName("outputCapabilities") val outputCapabilities: OutputCapabilities? = null
+)
+
+@Serializable
+data class InputCapabilities(
+    val text: Boolean = false,
+    val image: ImageInputCapability? = null,
+    val file: Boolean = false
+)
+
+@Serializable
+data class ImageInputCapability(
+    @SerialName("multipleImages") val multipleImages: Boolean = false
+)
+
+@Serializable
+data class OutputCapabilities(
+    val text: Boolean = false,
+    val web: Boolean = false,
+    val image: ImageOutputCapability? = null,
+    val search: Boolean = false
+)
+
+@Serializable
+data class ImageOutputCapability(
+    @SerialName("aspectRatios") val aspectRatios: List<String> = emptyList()
 )
 
 /**
@@ -61,18 +88,8 @@ data class LeaderboardEntry(
 )
 
 /**
- * Leaderboard response.
- */
-@Serializable
-data class LeaderboardResponse(
-    val category: LeaderboardCategory,
-    val entries: List<LeaderboardEntry> = emptyList(),
-    @SerialName("last_updated") val lastUpdated: String? = null
-)
-
-/**
- * Model vote - upvote / downvote / tie / both bad.
- * Used in Battle Mode to vote on the better model.
+ * Model vote - used in Battle Mode to vote on the better model.
+ * POST /api/vote
  */
 @Serializable
 enum class VoteValue(val apiValue: String, val displayName: String) {
@@ -86,3 +103,24 @@ enum class VoteValue(val apiValue: String, val displayName: String) {
             values().firstOrNull { it.apiValue.equals(value, ignoreCase = true) } ?: TIE
     }
 }
+
+/**
+ * Arena.ai user - from GET /api/me
+ * Captured 2026-07-11
+ */
+@Serializable
+data class ArenaUser(
+    val user: ArenaUserInfo
+)
+
+@Serializable
+data class ArenaUserInfo(
+    val id: String,
+    @SerialName("supabaseUserId") val supabaseUserId: String,
+    @SerialName("touConsentTimestamp") val touConsentTimestamp: String? = null,
+    @SerialName("avatarUrl") val avatarUrl: String? = null,
+    val email: String,
+    @SerialName("emailProvider") val emailProvider: String = "email",
+    val username: String? = null,
+    @SerialName("marketingSubscribed") val marketingSubscribed: Boolean = false
+)

@@ -58,7 +58,6 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.arena0077.app.data.models.BattleMode
 import com.arena0077.app.data.models.Message
-import com.arena0077.app.data.models.MessageRole
 import com.arena0077.app.data.models.Modality
 import com.arena0077.app.data.models.QuickAction
 import com.arena0077.app.ui.theme.ArenaPurple
@@ -295,9 +294,9 @@ private fun MessageBubble(
     isStreaming: Boolean,
     onVote: (String) -> Unit
 ) {
-    val isUser = message.role == MessageRole.USER
-    val isModelA = message.role == MessageRole.MODEL_A
-    val isModelB = message.role == MessageRole.MODEL_B
+    val isUser = message.isUser
+    val isModelA = message.isModelA
+    val isModelB = message.isModelB
 
     val bubbleColor = when {
         isUser -> ArenaPurple.copy(alpha = 0.15f)
@@ -312,12 +311,7 @@ private fun MessageBubble(
         else -> MaterialTheme.colorScheme.onSurfaceVariant
     }
 
-    val senderLabel = when {
-        isUser -> "You"
-        isModelA -> "Model A"
-        isModelB -> "Model B"
-        else -> message.modelName ?: "Assistant"
-    }
+    val senderLabel = message.modelLabel
 
     Row(
         modifier = Modifier.fillMaxWidth(),
