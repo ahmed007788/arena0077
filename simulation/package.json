@@ -1,0 +1,20 @@
+{
+  "name": "arena0077-simulation",
+  "version": "1.0.0",
+  "description": "Simulation server for Arena0077 Android app - mocks arena.ai API for testing",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "test": "node test-simulation.js",
+    "dev": "node --watch server.js"
+  },
+  "keywords": [
+    "arena.ai",
+    "android",
+    "simulation",
+    "testing",
+    "api-mock"
+  ],
+  "author": "ahmed007788",
+  "license": "MIT"
+}

@@ -1,0 +1,63 @@
+package com.arena0077.app
+
+import android.app.Application
+import dagger.hilt.android.HiltAndroidApp
+
+/**
+ * ArenaApplication - Application entry point with Hilt DI.
+ *
+ * This is the native Android client for arena.ai.
+ * Uses a hybrid architecture:
+ *  - Native Kotlin/Compose UI for navigation, sidebar, settings
+ *  - WebView for chat operations (handles reCAPTCHA Enterprise automatically)
+ *  - JavaScript bridge for two-way communication
+ *
+ * Architecture overview:
+ *
+ *   ┌────────────────────────────────────────────────────────────┐
+ *   │                  Compose UI (Native)                       │
+ *   │  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐  │
+ *   │  │ Sidebar  │  │  Chat    │  │Leaderboard│  │ Settings │  │
+ *   │  └────┬─────┘  └────┬─────┘  └──────────┘  └──────────┘  │
+ *   │       │              │                                      │
+ *   │       └──────────────┴──────► ChatViewModel ◄────┐         │
+ *   │                                  │                │         │
+ *   └──────────────────────────────────┼────────────────┘         │
+ *                                      │                          │
+ *   ┌──────────────────────────────────▼────────────────┐        │
+ *   │           ArenaRepository (singleton)             │        │
+ *   │   ┌────────────────┐    ┌──────────────────────┐ │        │
+ *   │   │ AuthManager    │    │  ArenaWebViewClient  │◄┼────────┘
+ *   │   │ (Supabase JWT) │    │  (reCAPTCHA-aware)   │ │
+ *   │   └────────────────┘    └──────────┬───────────┘ │
+ *   │                                   │              │
+ *   │   ┌───────────────────────────────▼───────────┐  │
+ *   │   │  JsBridge (JavaScriptInterface)           │  │
+ *   │   │  - onAuthStateChanged()                   │  │
+ *   │   │  - onMessageReceived()                    │  │
+ *   │   │  onStreamChunk()                          │  │
+ *   │   │  - onConversationCreated()                │  │
+ *   │   │  - onHistoryLoaded()                      │  │
+ *   │   │  - onError()                              │  │
+ *   │   └───────────────────────────────────────────┘  │
+ *   └──────────────────────────────────────────────────┘
+ *                                     │
+ *                                     ▼
+ *                       ┌─────────────────────────┐
+ *                       │   arena.ai (WebView)    │
+ *                       │  https://arena.ai/      │
+ *                       │                         │
+ *                       │  - Handles reCAPTCHA    │
+ *                       │    Enterprise V2 + V3   │
+ *                       │  - Streams chat         │
+ *                       │  - Renders markdown     │
+ *                       │  - Loads images         │
+ *                       └─────────────────────────┘
+ */
+@HiltAndroidApp
+class ArenaApplication : Application() {
+    override fun onCreate() {
+        super.onCreate()
+        // Initialize any global state here
+    }
+}

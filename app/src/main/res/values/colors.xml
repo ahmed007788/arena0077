@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Arena.ai brand palette (extracted from the actual site) -->
+    <color name="arena_bg_dark">#FF0A0A0F</color>
+    <color name="arena_bg_light">#FFFFFFFF</color>
+    <color name="arena_surface_dark">#FF13131A</color>
+    <color name="arena_surface_light">#FFF7F7F8</color>
+    <color name="arena_primary">#FF6E56EC</color>
+    <color name="arena_primary_dark">#FF8B7BFF</color>
+    <color name="arena_accent">#FF3DDC97</color>
+    <color name="arena_text_dark">#FFFFFFFF</color>
+    <color name="arena_text_light">#FF1A1A1A</color>
+    <color name="arena_text_secondary_dark">#FFA1A1AA</color>
+    <color name="arena_text_secondary_light">#FF71717A</color>
+    <color name="arena_divider_dark">#FF27272A</color>
+    <color name="arena_divider_light">#FFE4E4E7</color>
+    <color name="arena_error">#FFEF4444</color>
+    <color name="arena_warning">#FFF59E0B</color>
+    <color name="arena_success">#FF22C55E</color>
+
+    <!-- Model A vs Model B battle colors -->
+    <color name="model_a">#FF6E56EC</color>
+    <color name="model_b">#FF3DDC97</color>
+</resources>
